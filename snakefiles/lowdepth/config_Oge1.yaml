@@ -1,9 +1,9 @@
-# Config file of Snakefile bam2vcf_lite
+# Config file of Snakefile lowdepth
 # modified version of bam2vcf
 # BAM from external pipelines (mapache, generode...) as input
-# Load environment from within jonasl environment with $ conda activate bam2vcf
+# Load environment with $ conda activate lowdepth
 
-metadata: /media/labgenoma4/DATAPART4/jonasl/data/tigrinus/generode/metadata/subs_dp1.8_metadata_2024FEB28.tsv
+metadata: /media/labgenoma5/DATAPART4/jonasl/data/tigrinus/generode/metadata/subs_dp1.8_metadata_2024FEB28.tsv
 exclude: []
 
 ref:
@@ -12,25 +12,27 @@ ref:
     contig_tag: "scaffold"
     MT: "MT"
     sex_chr: ["X"]
-    file: /media/labgenoma4/DATAPART7/duda_grupo/references/O.geoffroyi_Oge1_pat1.0/O.geoffroyi_Oge1_pat1.0_genomic_edited.fasta
-    repeatmasker_out: /media/labgenoma4/DATAPART7/duda_grupo/references/Lge_Assembly_v1/Lge-1_final_rm.out.gz
+    file: /media/labgenoma5/DATAPART7/duda_grupo/references/O.geoffroyi_Oge1_pat1.0/O.geoffroyi_Oge1_pat1.0_genomic_edited.fasta
+    repeatmasker_out: /media/labgenoma5/DATAPART7/duda_grupo/references/Lge_Assembly_v1/Lge-1_final_rm.out.gz
 
-outgroup: []
+outgroup: ['Fch1a', 'SC36']
 
 bootstraps: 1000
 
 input:
-    bam: /media/labgenoma4/DATAPART4/jonasl/data/tigrinus/generode/subs_dp1.8 
+    bam: /media/labgenoma5/DATAPART4/jonasl/data/tigrinus/generode/subs_dp1.8 
 
 output:
-    vcf: /media/labgenoma4/DATAPART4/jonasl/data/tigrinus/vcf_Oge1
+    vcf: /media/labgenoma5/DATAPART4/jonasl/data/tigrinus/vcf_Oge1
 
 bin:
-    variantqc: /media/labgenoma4/DATAPART4/jonasl/bin/DISCVRSeq/DISCVRSeq-1.3.9.jar
-    vcf2dis: /media/labgenoma4/DATAPART4/jonasl/bin/VCF2Dis/bin/VCF2Dis
-    fastme: /media/labgenoma4/DATAPART4/jonasl/bin/FastME/binaries/fastme-2.1.6.2-linux64
-    vcf2phylip: /media/labgenoma4/DATAPART4/jonasl/bin/vcf2phylip/vcf2phylip.py
+    variantqc: /media/labgenoma5/DATAPART4/jonasl/bin/DISCVRSeq/DISCVRSeq-1.3.9.jar
+    vcf2dis: /media/labgenoma5/DATAPART4/jonasl/bin/VCF2Dis/bin/VCF2Dis
+    fastme: /media/labgenoma5/DATAPART4/jonasl/bin/FastME/binaries/fastme-2.1.6.2-linux64
+    vcf2phylip: /media/labgenoma5/DATAPART4/jonasl/bin/vcf2phylip/vcf2phylip.py
+    bcftools: /media/labgenoma5/DATAPART4/jonasl/bin/bcftools/bcftools
+    bgzip: /media/labgenoma5/DATAPART4/jonasl/bin/htslib/bgzip
 
 scripts:
-    plot_plink_pca: /media/labgenoma4/DATAPART4/jonasl/scripts/plot_plink_pca.py
+    plot_plink_pca: /media/labgenoma5/DATAPART4/jonasl/scripts/plot_plink_pca.py
 

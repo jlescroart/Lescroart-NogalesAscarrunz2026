@@ -58,7 +58,6 @@ figure_id = [id for id in metadata["figure_id"].astype(str).tolist()]
 unique_chr = []
 ref_fai = pd.read_csv("{ref}.fna.fai".format(ref = strip_ext(config["ref"]["file"])), sep = "\t", engine = "python", names = ["chromosome", "2", "3", "4", "5"]).set_index("chromosome", drop = False)
 for chr in ref_fai["chromosome"]:
-#    if config["ref"]["chromosome_tag"] in chr:
     if config["ref"]["contig_tag"] not in chr:
         unique_chr.append(chr)
 if config["ref"]["MT"] in unique_chr:
@@ -123,13 +122,10 @@ rule bcftools_mpileup:
     output:
         vcf = temp("{dir}/{{chr}}.vcf.gz".format(dir = config["output"]["vcf"]))
     params:
-        chr = "{chr}"
+        chr = "{chr}",
+        bcftools = config["bin"]["bcftools"]
     shell:
-        "bcftools mpileup -r {params.chr} --skip-indels --min-MQ 30 --min-BQ 20 -a FORMAT/DP -d 100 -Ou -f {input.ref_fna} {input.bam} | bcftools call -m --variants-only -Ou | bcftools annotate -x FORMAT/PL,^INFO/MQ -Oz -o {output.vcf}"
-#        "bcftools mpileup -r {params.chr} --skip-indels --min-MQ 30 --min-BQ 20 -a FORMAT/DP -d 100 -Ou -f {input.ref_fna} {input.bam} | bcftools call -m --variants-only -Ou | bcftools annotate -x FORMAT/PL,^INFO/MQ -Ou | bcftools filter -e 'FORMAT/DP>5' -Ou | bcftools filter -e 'FORMAT/DP<2' -Oz -o {output.vcf}"
-# Instead of filtering during mpileup, annotate eg INFO/INDEL and then filter with INFO/INDEL=1 using --soft-filter. Then all excluded sites are visible in VariantQC report, and can be excluded in analyses with the PASS filter tag.
-# Can't find a way to adjust min- and max-depth to sample- and chr specific value, like I did in bam2fasta
-# bcftools filter can use --set-GTs . to set only failed samples to missing (.) rather than discarding the whole site across all samples
+        "{params.bcftools} mpileup -r {params.chr} --skip-indels --min-MQ 30 --min-BQ 20 -a FORMAT/DP -d 100 -Ou -f {input.ref_fna} {input.bam} | {params.bcftools} call -m --variants-only -Ou | {params.bcftools} annotate -x FORMAT/PL,^INFO/MQ -Oz -o {output.vcf}"
 
 rule indexfeaturefile:
     input:
@@ -176,9 +172,11 @@ rule bcftools_concat:
     output:
         vcf = "{dir}/oncifelis.vcf.gz".format(dir = config["output"]["vcf"]),
         tmp = temp("{dir}/temp.vcf.gz".format(dir = config["output"]["vcf"]))
+    params:
+        bcftools = config["bin"]["bcftools"]
     threads: 6
     shell:
-        "bcftools concat --threads {threads} -Oz {input.vcf} | bcftools reheader -s {input.tsv} -o {output.tmp} && bcftools reheader --fai {input.fai} -o {output.vcf} {output.tmp}"
+        "{params.bcftools} concat --threads {threads} -Oz {input.vcf} | {params.bcftools} reheader -s {input.tsv} -o {output.tmp} && {params.bcftools} reheader --fai {input.fai} -o {output.vcf} {output.tmp}"
 
 use rule indexfeaturefile as indexfeaturefile_oncifelis with:
     input:
@@ -213,8 +211,10 @@ rule bgzip:
         vcf = "{dir}/oncifelis_Tv.vcf".format(dir = config["output"]["vcf"])
     output:
         vcf = "{dir}/oncifelis_Tv.vcf.gz".format(dir = config["output"]["vcf"])
+    params:
+        bgzip = config["bin"]["bgzip"]
     shell:
-        "bgzip {input.vcf}"
+        "{params.bgzip} {input.vcf}"
 
 use rule indexfeaturefile as indexfeaturefile_Tv with:
     input:
@@ -240,9 +240,10 @@ rule bcftools_autosomal:
         vcf = "{dir}/oncifelis_autosomal.vcf.gz".format(dir = config["output"]["vcf"])
     threads: 6
     params:
-        chr = ','.join(autosomes)
+        chr = ','.join(autosomes),
+        bcftools = config["bin"]["bcftools"]
     shell:
-        "bcftools filter --threads {threads} --regions {params.chr} -Oz -o {output.vcf} {input.vcf}"
+        "{params.bcftools} filter --threads {threads} --regions {params.chr} -Oz -o {output.vcf} {input.vcf}"
 
 use rule indexfeaturefile as indexfeaturefile_autosomal with:
     input:
@@ -422,8 +423,11 @@ use rule raxml_annotate as raxml_annotate_Tv with:
         bs = "{dir}/FastME/bootstraps_Tv.nwk".format(dir = config["output"]["vcf"])
     output:
         nwk = temp("{dir}/FastME/oncifelis_Tv_genomewide_nj_bs_truncid.nwk".format(dir = config["output"]["vcf"])),
-        info = temp("{dir}/FastME/RAxML_info.tmp".format(dir = config["output"]["vcf"])),
-        branch = temp("{dir}/FastME/RAxML_bipartitionsBranchLabels.tmp".format(dir = config["output"]["vcf"]))
+        info = temp("{dir}/FastME/Tv/RAxML_info.tmp".format(dir = config["output"]["vcf"])),
+        branch = temp("{dir}/FastME/Tv/RAxML_bipartitionsBranchLabels.tmp".format(dir = config["output"]["vcf"]))
+    params:
+        nwk = "{dir}/FastME/Tv/RAxML_bipartitions.tmp".format(dir = config["output"]["vcf"]),
+        dir = "{dir}/FastME/Tv".format(dir = config["output"]["vcf"])
 
 use rule restore_id as restore_id_Tv with:
     input:
@@ -518,6 +522,7 @@ rule plink2_afreq:
         "plink2 --vcf {input.vcf} --threads {threads} --memory 16000 --double-id --allow-extra-chr --set-missing-var-ids @:# --keep {input.tsv} --freq --out {params.prefix}"
 
 rule plink2_pca:
+#PLINK2 may complain about too few samples. In that case you need to reduce the number of computed PCs from the default 10, e.g. "--pca 2"
     input:
         vcf = "{dir}/oncifelis_autosomal_Tv.vcf.gz".format(dir = config["output"]["vcf"]),
         prune_in = "{dir}/plink2/oncifelis_autosomal_Tv.prune.in".format(dir = config["output"]["vcf"]),
